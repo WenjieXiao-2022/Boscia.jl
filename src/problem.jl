@@ -72,7 +72,7 @@ end
 """
 Checks if x is valid for all linear and variable bound constraints 
 """
-is_linear_feasible(lmo::TimeTrackingLMO, v::AbstractVector) = is_linear_feasible(lmo.blmo, v)
+is_linear_feasible(lmo::TimeTrackingLMO, v::Union{AbstractVector,AbstractMatrix}) = is_linear_feasible(lmo.blmo, v)
 
 """
 Are indicator constraints present
