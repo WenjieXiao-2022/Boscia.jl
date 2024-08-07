@@ -97,7 +97,7 @@ end
         lower_bounds = fill(0.0, n^2)
         upper_bounds = fill(1.0, n^2)
 
-        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true
+        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true)
         @test f(x) <= f(result[:raw_solution]) + 1e-6
         @test is_simple_linear_feasible(sblmo, x)
     end
