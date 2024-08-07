@@ -32,21 +32,30 @@ function Boscia.bounded_compute_extreme_point(sblmo::BirkhoffBLMO, d, lb, ub, in
 
     fixed_to_one_rows = Int[]
     fixed_to_one_cols = Int[]
+    delete_ub = Int[]
     for j in 1:n
         for i in 1:n
             if lb[(j-1)*n + i] >= 1 - eps()
                 if sblmo.append_by_column
                     push!(fixed_to_one_rows, i)
                     push!(fixed_to_one_cols, j)
+                    append!(delete_ub, union(collect((j-1)*n+1:j*n), collect(i:n:n^2)))
                 else
                     push!(fixed_to_one_rows, j)
                     push!(fixed_to_one_cols, i)
+                    append!(delete_ub, union(collect((i-1)*n+1:i*n), collect(j:n:n^2)))
                 end
             end
         end
-    end
+    end 
+
+    sort!(delete_ub)
+    unique!(delete_ub)
     nfixed = length(fixed_to_one_cols)
     nreduced = n - nfixed
+    reducedub = copy(ub)
+    deleteat!(reducedub, delete_ub)
+
     # stores the indices of the original matrix that are still in the reduced matrix
     index_map_rows = fill(1, nreduced)
     index_map_cols = fill(1, nreduced)
@@ -67,7 +76,7 @@ function Boscia.bounded_compute_extreme_point(sblmo::BirkhoffBLMO, d, lb, ub, in
     for j in 1:nreduced
         for i in 1:nreduced
             # interdict arc when fixed to zero
-            if ub[(j-1)*n + i] <= eps()
+            if reducedub[(j-1)*nreduced + i] <= eps()
                 if sblmo.append_by_column
                     d2[i,j] = missing
                 else
