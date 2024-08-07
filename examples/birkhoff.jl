@@ -6,6 +6,7 @@ using FiniteDifferences
 using SCIP
 using LinearAlgebra
 using DataFrames
+using CSV
 import MathOptInterface
 const MOI = MathOptInterface
 import HiGHS
