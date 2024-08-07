@@ -113,7 +113,8 @@ end
 The sum of each row and column has to be equal to 1.
 """
 function Boscia.is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractVector) 
-    for i in 1:sblmo.dim
+    n = sblmo.dim
+    for i in 1:n
         # append by column ? column sum : row sum 
         if !isapprox(sum(v[((i-1)*n+1):(i*n)]), 1.0, atol=1e-6, rtol=1e-3) 
             @debug "Column sum not 1: $(sum(v[((i-1)*n+1):(i*n)]))"
