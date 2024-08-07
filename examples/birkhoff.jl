@@ -5,6 +5,7 @@ using Random
 using FiniteDifferences
 using SCIP
 using LinearAlgebra
+using DataFrames
 import MathOptInterface
 const MOI = MathOptInterface
 import HiGHS
