@@ -2,6 +2,7 @@ using Boscia
 using FrankWolfe
 using Test
 using Random
+using FiniteDifferences
 using SCIP
 using LinearAlgebra
 import MathOptInterface
@@ -10,10 +11,29 @@ import HiGHS
 
 # For bug hunting:
 seed = rand(UInt64)
+seed = 0x277d2308b1e8c464
 @show seed
 Random.seed!(seed)
 
 include("birkhoff_Blmo.jl")
+
+"""
+Check if the gradient using finite differences matches the grad! provided.
+Copied from FrankWolfe package: https://github.com/ZIB-IOL/FrankWolfe.jl/blob/master/examples/plot_utils.jl
+"""
+function check_gradients(grad!, f, gradient, num_tests=10, tolerance=1.0e-5)
+    for i in 1:num_tests
+        m,n = size(gradient)
+        random_point = rand(m,n)
+        grad!(gradient, random_point)
+        if norm(grad(central_fdm(5, 1), f, random_point)[1] - gradient) > tolerance
+            @warn "There is a noticeable difference between the gradient provided and
+            the gradient computed using finite differences.:\n$(norm(grad(central_fdm(5, 1), f, random_point)[1] - gradient))"
+            return false
+        end
+    end
+    return true
+end
 
 # min_{X} 1/2 * || X - Xhat ||_F^2
 # X ∈ P_n (permutation matrix)
@@ -29,11 +49,11 @@ function build_objective(n)
     end
 
     function f(X)
-        return 1/2 * LinearAlgebra.tr(X - Xstar)
+        return 1/2 * LinearAlgebra.tr(LinearAlgebra.transpose(X .- Xstar)*(X .- Xstar))
     end
 
     function grad!(storage, X)
-        storage .= X - Xstar
+        storage .= X .- Xstar
         return storage
     end
 
@@ -65,6 +85,11 @@ end
 @testset "Birkhoff" begin
     f, grad! = build_objective(n)
 
+    @testset "Test Derivative" begin
+        gradient = rand(n,n)
+        @test check_gradients(grad!, f, gradient)
+    end
+
     x = zeros(n, n)
     @testset "Custom BLMO" begin
         sblmo = BirkhoffBLMO(true, n, collect(1:n^2))
@@ -72,7 +97,7 @@ end
         lower_bounds = fill(0.0, n^2)
         upper_bounds = fill(1.0, n^2)
 
-        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true)
+        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true
         @test f(x) <= f(result[:raw_solution]) + 1e-6
         @test is_simple_linear_feasible(sblmo, x)
     end
