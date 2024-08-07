@@ -170,9 +170,8 @@ end
 # That means does v satisfy all bounds and other linear constraints?
 function is_linear_feasible(blmo::ManagedBoundedLMO, v::Union{AbstractVector,AbstractMatrix})
     for (i, int_var) in enumerate(blmo.int_vars)
-        if !(
-            blmo.lower_bounds[i] ≤ v[int_var] + 1e-6 || !(v[int_var] - 1e-6 ≤ blmo.upper_bounds[i])
-        )
+        if !(blmo.lower_bounds[i] ≤ v[int_var] + 1e-6) || !(v[int_var] - 1e-6 ≤ blmo.upper_bounds[i])
+        
             @debug(
                 "Variable: $(int_var) Vertex entry: $(v[int_var]) Lower bound: $(blmo.lower_bounds[i]) Upper bound: $(blmo.upper_bounds[i]))"
             )
