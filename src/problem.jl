@@ -46,7 +46,7 @@ Checks if a given vector is valid integral solution. Specifically for mixed prob
 """
 function is_integer_feasible(
     integer_variables::AbstractVector{<:Integer},
-    x::AbstractVector;
+    x::Union{AbstractVector,AbstractMatrix};
     atol=1e-6,
     rtol=1e-6,
 )
@@ -58,7 +58,7 @@ function is_integer_feasible(
     return true
 end
 
-function is_integer_feasible(tree::Bonobo.BnBTree, x::AbstractVector)
+function is_integer_feasible(tree::Bonobo.BnBTree, x::Union{AbstractVector,AbstractMatrix})
     indicator_feasible =
         indicator_present(tree) ? is_indicator_feasible(tree.root.problem.tlmo.blmo.o, x) : true
     return is_integer_feasible(
