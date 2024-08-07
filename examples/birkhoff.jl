@@ -36,7 +36,7 @@ end
 # min_{X} 1/2 * || X - Xhat ||_F^2
 # X ∈ P_n (permutation matrix)
 
-n = 8
+#n = 8
 
 function build_objective(n, append_by_column=true)
     # generate random doubly stochastic matrix
