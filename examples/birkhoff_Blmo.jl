@@ -1,6 +1,7 @@
 ## Birkhoff BLMO
 using Boscia
 using Hungarian
+using LinearAlgebra
 using SparseArrays
 
 """
@@ -90,27 +91,35 @@ function Boscia.bounded_compute_extreme_point(sblmo::BirkhoffBLMO, d, lb, ub, in
     @inbounds for i in eachindex(cols)
         m[index_map_rows[rows[i]], index_map_cols[cols[i]]] = (vals[i] == 2)
     end
+
+    m = if sblmo.append_by_column
+        reduce(vcat, Matrix(m))
+    else
+        reduce(vcat, LinearAlgebra.transpose(Matrix(m)))
+    end
     return m
 end
 
 """
 The sum of each row and column has to be equal to 1.
 """
-#= function is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractVector) 
+function Boscia.is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractVector) 
     for i in 1:sblmo.dim
         # append by column ? column sum : row sum 
-        if !isapprox(sum(v[i*(1:n)]), 1.0, atol=1e-6, rtol=1e-3) 
+        if !isapprox(sum(v[((i-1)*n+1):(i*n)]), 1.0, atol=1e-6, rtol=1e-3) 
+            @debug "Column sum not 1: $(sum(v[((i-1)*n+1):(i*n)]))"
             return false
         end
         # append by column ? row sum : column sum
         if !isapprox(sum(v[i:n:n^2]), 1.0, atol=1e-6, rtol=1e-3)
+            @debug "Row sum not 1: $(sum(v[i:n:n^2]))"
             return false
         end
     end
     return true
-end =#
+end 
 
-function Boscia.is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractMatrix) 
+#=function Boscia.is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractMatrix) 
     n = sblmo.dim
     for i in 1:n
         # check row sum
@@ -123,4 +132,4 @@ function Boscia.is_simple_linear_feasible(sblmo::BirkhoffBLMO, v::AbstractMatrix
         end
     end
     return true
-end
+end=#

@@ -23,8 +23,7 @@ Copied from FrankWolfe package: https://github.com/ZIB-IOL/FrankWolfe.jl/blob/ma
 """
 function check_gradients(grad!, f, gradient, num_tests=10, tolerance=1.0e-5)
     for i in 1:num_tests
-        m,n = size(gradient)
-        random_point = rand(m,n)
+        random_point = rand(length(gradient))
         grad!(gradient, random_point)
         if norm(grad(central_fdm(5, 1), f, random_point)[1] - gradient) > tolerance
             @warn "There is a noticeable difference between the gradient provided and
@@ -40,7 +39,7 @@ end
 
 n = 3
 
-function build_objective(n)
+function build_objective(n, append_by_column=true)
     # generate random doubly stochastic matrix
     Xstar = rand(n, n)
     while norm(sum(Xstar, dims=1) .- 1) > 1e-6 || norm(sum(Xstar, dims=2) .- 1) > 1e-6
@@ -48,12 +47,19 @@ function build_objective(n)
         Xstar ./= sum(Xstar, dims=2)
     end
 
-    function f(X)
+    function f(x)
+        X = append_by_column ? reshape(x, (n,n)) : transpose(reshape(x, (n,n)))
         return 1/2 * LinearAlgebra.tr(LinearAlgebra.transpose(X .- Xstar)*(X .- Xstar))
     end
 
-    function grad!(storage, X)
-        storage .= X .- Xstar
+    function grad!(storage, x)
+        X = append_by_column ? reshape(x, (n,n)) : transpose(reshape(x, (n,n)))
+        storage .= if append_by_column
+            reduce(vcat, X .- Xstar)
+        else
+            reduce(vcat, LinearAlgebra.transpose(X .- Xstar))
+        end
+        #storage .= X .- Xstar
         return storage
     end
 
@@ -86,7 +92,7 @@ end
     f, grad! = build_objective(n)
 
     @testset "Test Derivative" begin
-        gradient = rand(n,n)
+        gradient = rand(n^2)
         @test check_gradients(grad!, f, gradient)
     end
 
@@ -97,7 +103,7 @@ end
         lower_bounds = fill(0.0, n^2)
         upper_bounds = fill(1.0, n^2)
 
-        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true)
+        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true, print_iter=1)
         @test f(x) <= f(result[:raw_solution]) + 1e-6
         @test is_simple_linear_feasible(sblmo, x)
     end
