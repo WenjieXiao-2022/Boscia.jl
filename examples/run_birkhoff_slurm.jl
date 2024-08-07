@@ -1,8 +1,8 @@
 modes = ["custom", "mip"]
 
 for mode in modes
-    for dimension in 15:30
-        for seed in seeds
+    for dimension in 3:10
+        for seed in 1:5
             
             @show seed, dimension
             run(`sbatch batch_birkhoff.sh $mode $dimension $seed`)
