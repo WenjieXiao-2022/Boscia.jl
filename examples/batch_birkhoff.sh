@@ -34,7 +34,7 @@
 #SBATCH --mail-type=FAIL
 
 # You may not place any commands before the last SBATCH directive
-julia --project run_birkhoff.jl $1 $2 $3 &> birkhoff_$1_$2_$3_$SLURM_JOB_ID.txt
+julia --project run_birkhoff_setup.jl $1 $2 $3 &> birkhoff_$1_$2_$3_$SLURM_JOB_ID.txt
 
 # Finish the script
 exit 0

@@ -99,7 +99,7 @@ function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=1200
         lower_bounds = fill(0.0, dim^2)
         upper_bounds = fill(1.0, dim^2)
 
-        lmo = ManagedBoundedLMO(sblmo, lower_bounds, upper_bounds, collect(1:dim^2), dim^2)
+        lmo = Boscia.ManagedBoundedLMO(sblmo, lower_bounds, upper_bounds, collect(1:dim^2), dim^2)
     elseif mode == "mip"
         lmo = build_birkhoff_mip(dim)
     else
@@ -123,7 +123,7 @@ function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=1200
         list_discarded_set_size_cb = result[:list_discarded_set_size]
         list_local_tightening = result[:local_tightenings]
         list_global_tightening = result[:global_tightenings]
-        df_full = DataFrame(seed=seed, dimension=n, time=time_list, lowerBound= lb_list, upperBound = ub_list, termination=status, LMOcalls = list_lmo_calls, localTighteings=list_local_tightening, globalTightenings=list_global_tightening, list_active_set_size_cb=list_active_set_size_cb,list_discarded_set_size_cb=list_discarded_set_size_cb)
+        df_full = DataFrame(seed=seed, dimension=dim, time=time_list, lowerBound= lb_list, upperBound = ub_list, termination=status, LMOcalls = list_lmo_calls, localTighteings=list_local_tightening, globalTightenings=list_global_tightening, list_active_set_size_cb=list_active_set_size_cb,list_discarded_set_size_cb=list_discarded_set_size_cb)
         file_name_full = joinpath(@__DIR__, "csv/full_run_boscia_" * mode * "_" * string(dim) * "_" *string(seed) * "_birkhoff.csv")
         CSV.write(file_name_full, df_full, append=false)
 
