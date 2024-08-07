@@ -11,7 +11,6 @@ import HiGHS
 
 # For bug hunting:
 seed = rand(UInt64)
-seed = 0x277d2308b1e8c464
 @show seed
 Random.seed!(seed)
 
@@ -103,9 +102,9 @@ end
         lower_bounds = fill(0.0, n^2)
         upper_bounds = fill(1.0, n^2)
 
-        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true, print_iter=1)
+        x, _, result = Boscia.solve(f, grad!, sblmo, lower_bounds, upper_bounds, collect(1:n^2), n^2, verbose=true)
         @test f(x) <= f(result[:raw_solution]) + 1e-6
-        @test is_simple_linear_feasible(sblmo, x)
+        @test Boscia.is_simple_linear_feasible(sblmo, x)
     end
 
     x_mip = zeros(n,n)
