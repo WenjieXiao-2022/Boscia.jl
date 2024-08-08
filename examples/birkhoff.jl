@@ -89,7 +89,7 @@ function build_birkhoff_mip(n)
     return Boscia.MathOptBLMO(o)
 end
 
-function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=1200, write=true)
+function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=3600, write=true)
     @show seed
     Random.seed!(seed)
 
