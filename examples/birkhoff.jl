@@ -108,7 +108,7 @@ function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=1200
         error("Mode not known")
     end
 
-    x, _, result = Boscia.solve(f, grad!, lmo, verbose=verbose)
+    x, _, result = Boscia.solve(f, grad!, lmo, verbose=verbose, time_limit=time_limit)
 
     total_time_in_sec=result[:total_time_in_sec]
     status = result[:status]
