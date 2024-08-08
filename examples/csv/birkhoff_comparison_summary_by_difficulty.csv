@@ -1,0 +1,6 @@
+minTime,numInstances,Boscia_CustomTerm,Boscia_CustomTermRel,Boscia_CustomTime,Boscia_CustomRelGapNT,Boscia_CustomNodesOCuts,Boscia_MIPTerm,Boscia_MIPTermRel,Boscia_MIPTime,Boscia_MIPRelGapNT,Boscia_MIPNodesOCuts
+0,40,30,75 %,50.43,0.14,224917,27,68 %,95.81,0.28,71208
+10,21,11,52 %,238.85,0.27,427358,8,38 %,644.11,0.52,134580
+60,15,5,33 %,771.13,0.38,587289,2,13 %,1192.02,0.73,177392
+300,12,2,17 %,1014.92,0.47,673452,0,0 %,1200.03,0.9,166812
+600,10,0,0 %,1200.6,0.56,748488,0,0 %,1200.03,1.02,173054
