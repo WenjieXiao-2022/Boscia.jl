@@ -1,13 +1,13 @@
 using CSV
 using DataFrames
 
-function merge_csvs(;example="birkhoff", mode="custom", seeds=1:5, dimensions=3:10)
+function merge_csvs(;example="birkhoff", mode="custom", seeds=1:10, dimensions=3:15, time_limit=1800.0)
     # setup df
     df = DataFrame(CSV.File(joinpath(@__DIR__, "csv/boscia_" * mode * "_" * example * "_" * string(dimensions[1]) * "_" * string(seeds[1]) * ".csv")))
     select!(df, Not(:termination))
     df[!, "termination"] = ["ALMOST_LOCALLY_SOLVED"]
     select!(df, Not(:time))
-    df[!, "time"] = [1200.0]
+    df[!, "time"] = [time_limit]
     deleteat!(df, 1)
 
     # add results
@@ -53,7 +53,7 @@ function build_non_grouped_csv(;option="comparison", example = "birkhoff")
     """
     Read out the time, solution etc from the individuals job files.
     """
-    function read_data(example::String, solver::String, folder)
+    function read_data(example::String, solver::String, folder; time_limit=1800.0)
         time = []
         solution = []
         termination = []
@@ -74,7 +74,7 @@ function build_non_grouped_csv(;option="comparison", example = "birkhoff")
         # If a solver returns that it isn't, it counts as non-solved.
         infeas_idx = findall(x->x=="INFEASIBLE", df[!,:termination])
         if !isempty(infeas_idx)
-            time[infeas_idx] = 1200.0
+            time[infeas_idx] = time_limit
         end
         
         if contains(solver, "boscia")
@@ -89,9 +89,9 @@ function build_non_grouped_csv(;option="comparison", example = "birkhoff")
         end
 
         # The MIP LIB instances sometimes overshoot the time limit.
-        over_time_idx = findall(x-> x > 1210.0, df[!,:time])
+        over_time_idx = findall(x-> x > time_limit + 60, df[!,:time])
         if !isempty(over_time_idx)
-            time[over_time_idx] .= 1200.0
+            time[over_time_idx] .= time_limit
             termination[over_time_idx] .= 0
         end
 
@@ -118,7 +118,7 @@ function build_non_grouped_csv(;option="comparison", example = "birkhoff")
     end
 
     function combine_data(df, example, solver, solver_id, minimumTime)
-        time, solution, termination, num_n_o_c, dual_gap, lower_bound = read_data(example, solver_id, "csv" )
+        time, solution, termination, num_n_o_c, dual_gap, lower_bound = read_data(example, solver_id, "csv", time_limit=3600.0)
 
         df[!,Symbol("time"*solver)] = time
         df[!,Symbol("solution"*solver)] = solution
@@ -368,8 +368,8 @@ function build_grouped_csv(; example="birkhoff", option="comparison", by_time=fa
         return num_instances, term, term_rel, time, num_nodes, rel_gap_nt
     end
 
-    time_slots = [0, 10, 60, 300, 600]
-    dimensions = collect(3:10)
+    time_slots = [0, 10, 60, 300, 600, 1200, 1800, 2700]
+    dimensions = collect(3:15)
     solvers= ["Boscia_Custom", "Boscia_MIP"]
 
     df = DataFrame()
@@ -415,8 +415,8 @@ function build_grouped_csv(; example="birkhoff", option="comparison", by_time=fa
 end
 
 # Compile the results and evaluate
-merge_csvs(mode="custom")
-merge_csvs(mode="mip")
+merge_csvs(mode="custom", time_limit=3600.0)
+merge_csvs(mode="mip", time_limit=3600.0)
 
 build_non_grouped_csv()
 build_grouped_csv()
