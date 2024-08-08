@@ -114,6 +114,8 @@ function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=1200
     status = result[:status]
     if occursin("Optimal", result[:status])
         status = "OPTIMAL"
+    elseif occursin("Time", result[:status])
+        status = "TIME_LIMIT"
     end
 
     if write
