@@ -34,7 +34,7 @@ function plot_term(;by_time=false)
         ax.plot(x_mip, 1:nrow(df_mip), label="MIP SCIP", color=colors[6], linestyle=linestyle[3], marker=markers[3])
 
         ax.grid()
-        ax.set_xscale("log")
+        #ax.set_xscale("log")
 
         ax.legend(loc="lower right")#, bbox_to_anchor=(0.5, -0.3), fontsize=12,fancybox=true, shadow=false, ncol=2) 
 
