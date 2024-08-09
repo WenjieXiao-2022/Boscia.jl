@@ -34,9 +34,9 @@ end
 """
 Create the set up data like seeds, dimensions etc.
 """
-function set_up_data(df, example="birkhoff")
-    seeds = collect(1:5)
-    dims = collect(3:10)
+function set_up_data(df, dims, seeds, example="birkhoff")
+    #seeds = collect(1:5)
+    #dims = collect(3:10)
 
     dimensions = Int[]
     for i in dims
@@ -152,7 +152,7 @@ function build_non_grouped_csv(;option="comparison", example = "birkhoff")
 
     # set up data
     df = DataFrame()
-    df = set_up_data(df, example)
+    df = set_up_data(df, collect(3:15), collect(1:10), example)
 
     @show size(df)
 
