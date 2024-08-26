@@ -5,7 +5,7 @@ using LinearAlgebra
 using SparseArrays
 
 """
-    BikrhoffBLMO
+    BirkhoffBLMO
 
 A simple LMO that computes the extreme point given the node specific bounds on the integer variables.
 Can be stateless since all of the bound management is done by the ManagedBoundedLMO.   
