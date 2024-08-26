@@ -2,43 +2,18 @@ using Boscia
 using FrankWolfe
 using Test
 using Random
-using FiniteDifferences
 using SCIP
 using LinearAlgebra
-using DataFrames
-using CSV
 import MathOptInterface
 const MOI = MathOptInterface
 import HiGHS
 
-# For bug hunting:
-#seed = rand(UInt64)
-#@show seed
-#Random.seed!(seed)
-
 include("birkhoff_Blmo.jl")
-
-"""
-Check if the gradient using finite differences matches the grad! provided.
-Copied from FrankWolfe package: https://github.com/ZIB-IOL/FrankWolfe.jl/blob/master/examples/plot_utils.jl
-"""
-function check_gradients(grad!, f, gradient, num_tests=10, tolerance=1.0e-5)
-    for i in 1:num_tests
-        random_point = rand(length(gradient))
-        grad!(gradient, random_point)
-        if norm(grad(central_fdm(5, 1), f, random_point)[1] - gradient) > tolerance
-            @warn "There is a noticeable difference between the gradient provided and
-            the gradient computed using finite differences.:\n$(norm(grad(central_fdm(5, 1), f, random_point)[1] - gradient))"
-            return false
-        end
-    end
-    return true
-end
 
 # min_{X} 1/2 * || X - Xhat ||_F^2
 # X ∈ P_n (permutation matrix)
 
-#n = 8
+n = 3
 
 function build_objective(n, append_by_column=true)
     # generate random doubly stochastic matrix
@@ -89,63 +64,8 @@ function build_birkhoff_mip(n)
     return Boscia.MathOptBLMO(o)
 end
 
-function birkhoff_boscia(seed, dim; mode="custom", verbose=true, time_limit=3600, write=true)
-    @show seed
-    Random.seed!(seed)
-
-    f, grad! = build_objective(dim)
-
-    if mode == "custom"
-        sblmo = BirkhoffBLMO(true, dim, collect(1:dim^2))
-
-        lower_bounds = fill(0.0, dim^2)
-        upper_bounds = fill(1.0, dim^2)
-
-        lmo = Boscia.ManagedBoundedLMO(sblmo, lower_bounds, upper_bounds, collect(1:dim^2), dim^2)
-    elseif mode == "mip"
-        lmo = build_birkhoff_mip(dim)
-    else
-        error("Mode not known")
-    end
-
-    x, _, result = Boscia.solve(f, grad!, lmo, verbose=verbose, time_limit=time_limit)
-
-    total_time_in_sec=result[:total_time_in_sec]
-    status = result[:status]
-    if occursin("Optimal", result[:status])
-        status = "OPTIMAL"
-    elseif occursin("Time", result[:status])
-        status = "TIME_LIMIT"
-    end
-
-    if write
-        lb_list = result[:list_lb]
-        ub_list = result[:list_ub]
-        time_list = result[:list_time]
-        list_lmo_calls = result[:list_lmo_calls_acc]
-        list_active_set_size_cb = result[:list_active_set_size] 
-        list_discarded_set_size_cb = result[:list_discarded_set_size]
-        list_local_tightening = result[:local_tightenings]
-        list_global_tightening = result[:global_tightenings]
-        df_full = DataFrame(seed=seed, dimension=dim, time=time_list, lowerBound= lb_list, upperBound = ub_list, termination=status, LMOcalls = list_lmo_calls, localTighteings=list_local_tightening, globalTightenings=list_global_tightening, list_active_set_size_cb=list_active_set_size_cb,list_discarded_set_size_cb=list_discarded_set_size_cb)
-        file_name_full = joinpath(@__DIR__, "csv/full_run_boscia_" * mode * "_" * string(dim) * "_" *string(seed) * "_birkhoff.csv")
-        CSV.write(file_name_full, df_full, append=false)
-
-    
-        @show result[:primal_objective]
-        df = DataFrame(seed=seed, dimension=dim, time=total_time_in_sec, solution=result[:primal_objective], dual_gap =result[:dual_gap], rel_dual_gap=result[:rel_dual_gap], termination=status, ncalls=result[:lmo_calls])
-        file_name = joinpath(@__DIR__,"csv/boscia_" * mode * "_birkhoff_" * string(dim) * "_" * string(seed) * ".csv")
-        CSV.write(file_name, df, append=false, writeheader=true)
-    end
-end
-
-#= @testset "Birkhoff" begin
+ @testset "Birkhoff" begin
     f, grad! = build_objective(n)
-
-    #=@testset "Test Derivative" begin
-        gradient = rand(n^2)
-        @test check_gradients(grad!, f, gradient)
-    end =#
 
     x = zeros(n, n)
     @testset "Custom BLMO" begin
@@ -172,4 +92,4 @@ end
     @show x_mip
     @show f(x), f(x_mip)
     @test isapprox(f(x_mip), f(x), atol=1e-6, rtol=1e-2)
-end =#
+end 
