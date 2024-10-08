@@ -35,7 +35,7 @@ function plot_term(;by_time=true, log_scale=true)
         filter!(row -> !(row.terminationBoscia_MIP == 0),  df_mip)
         x_mip = sort(df_mip[!,"timeBoscia_MIP"]) 
         #ax.plot(x_mip, 1:nrow(df_mip), label="MIP SCIP", color=colors[6], linestyle=linestyle[3], marker=markers[3])
-        ax.plot(x_mip, 1:nrow(df_mip), label="Boscia + MIP SCIP", color=colors[6], linestyle=linestyle[3], marker=markers[3])
+        ax.plot(x_mip, 1:nrow(df_mip), label="Boscia + MIP SCIP", color=colors[3], linestyle=linestyle[3], marker=markers[3])
 
         ax.grid()
         log_scale ? ax.set_xscale("log") : nothing
@@ -68,12 +68,12 @@ function plot_term(;by_time=true, log_scale=true)
         linewidth = 2
 
         axs[1].plot(df[!,"Dimension"], df[!,"Boscia_CustomTerm"], label="Hungarian", color=colors[2], linestyle=linestyle[1], marker=markers[1])
-        axs[1].plot(df[!,"Dimension"], df[!,"Boscia_MIPTerm"], label="MIP SCIP", color=colors[6], linestyle=linestyle[3], marker=markers[3])
+        axs[1].plot(df[!,"Dimension"], df[!,"Boscia_MIPTerm"], label="MIP SCIP", color=colors[3], linestyle=linestyle[3], marker=markers[3])
 
         axs[1].grid()
 
         axs[2].plot(df[!,"Dimension"], df[!,"Boscia_CustomTime"], label="Hungarian", color=colors[2], linestyle=linestyle[1], marker=markers[1])
-        axs[2].plot(df[!,"Dimension"], df[!,"Boscia_MIPTime"], label="MIP SCIP", color=colors[6], linestyle=linestyle[3], marker=markers[3])
+        axs[2].plot(df[!,"Dimension"], df[!,"Boscia_MIPTime"], label="MIP SCIP", color=colors[3], linestyle=linestyle[3], marker=markers[3])
 
         axs[2].grid()
         axs[2].legend(loc="lower right")#, bbox_to_anchor=(0.5, -0.3), fontsize=12,fancybox=true, shadow=false, ncol=2) 
