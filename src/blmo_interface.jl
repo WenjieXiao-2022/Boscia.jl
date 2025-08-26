@@ -176,6 +176,15 @@ function free_model(blmo::BoundedLinearMinimizationOracle)
 end
 
 """
+    add_fixed_int_vars_vals(blmo::BoundedLinearMinimizationOracle, fixed_int_vars)
+
+Stores fixed integer variables and the corresponding fixed values in the given `blmo`.
+"""
+function add_fixed_int_vars_vals(blmo::BoundedLinearMinimizationOracle, fixed_int_vars)
+    return true
+end
+
+"""
     get_tol(blmo::BoundedLinearMinimizationOracle)
 
 Get solving tolerance for the BLMO.
