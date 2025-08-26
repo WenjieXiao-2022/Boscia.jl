@@ -60,6 +60,7 @@ mutable struct FrankWolfeNode{
     active_set::AT
     discarded_vertices::DVS
     local_bounds::IB
+    fixed_int_vars::Vector{Int}
     level::Int
     fw_dual_gap_limit::Float64
     fw_time::Millisecond
@@ -82,6 +83,7 @@ FrankWolfeNode(
     active_set,
     discarded_vertices,
     local_bounds,
+    fixed_int_vars,
     level,
     fw_dual_gap_limit,
     fw_time,
@@ -95,6 +97,7 @@ FrankWolfeNode(
     active_set,
     discarded_vertices,
     local_bounds,
+    fixed_int_vars,
     level,
     fw_dual_gap_limit,
     fw_time,
@@ -219,6 +222,30 @@ function Bonobo.get_branching_nodes_info(tree::Bonobo.BnBTree, node::FrankWolfeN
     push!(varbounds_left.upper_bounds, (vidx => floor(x[vidx])))
     push!(varbounds_right.lower_bounds, (vidx => ceil(x[vidx])))
 
+    # check if the corresponding variable is fixed
+    fixed_int_vars_left = copy(node.fixed_int_vars)
+    fixed_int_vars_right = copy(node.fixed_int_vars)
+
+    if haskey(varbounds_left.lower_bounds, vidx)
+        if isapprox(varbounds_left.lower_bounds[vidx], floor(x[vidx]))
+            push!(fixed_int_vars_left, vidx)
+        end
+    else
+        if isapprox(tree.root.problem.integer_variable_bounds.lower_bounds[vidx], floor(x[vidx]))
+            push!(fixed_int_vars_left, vidx)
+        end
+    end
+
+    if haskey(varbounds_right.upper_bounds, vidx)
+        if isapprox(varbounds_right.upper_bounds[vidx], ceil(x[vidx]))
+            push!(fixed_int_var_right, vidx)
+        end
+    else
+        if isapprox(tree.root.problem.integer_variable_bounds.upper_bounds[vidx], ceil(x[vidx]))
+            push!(fixed_int_vars_right, vidx)
+        end
+    end
+
     # compute new dual gap limit
     fw_dual_gap_limit = tree.root.options[:dual_gap_decay_factor] * node.fw_dual_gap_limit
     fw_dual_gap_limit = max(fw_dual_gap_limit, tree.root.options[:min_node_fw_epsilon])
@@ -243,6 +270,7 @@ function Bonobo.get_branching_nodes_info(tree::Bonobo.BnBTree, node::FrankWolfeN
         active_set=active_set_left,
         discarded_vertices=discarded_set_left,
         local_bounds=varbounds_left,
+        fixed_int_vars=fixed_int_vars_left,
         level=(node.level + 1),
         fw_dual_gap_limit=fw_dual_gap_limit,
         fw_time=Millisecond(0),
@@ -260,6 +288,7 @@ function Bonobo.get_branching_nodes_info(tree::Bonobo.BnBTree, node::FrankWolfeN
         active_set=active_set_right,
         discarded_vertices=discarded_set_right,
         local_bounds=varbounds_right,
+        fixed_int_vars=fixed_int_vars_right,
         level=(node.level + 1),
         fw_dual_gap_limit=fw_dual_gap_limit,
         fw_time=Millisecond(0),
