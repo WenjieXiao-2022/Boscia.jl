@@ -39,6 +39,8 @@ mutable struct ManagedBoundedLMO{SBLMO<:SimpleBoundableLMO} <: BoundedLinearMini
     lower_bounds::Vector{Float64}
     upper_bounds::Vector{Float64}
     int_vars::Vector{Int}
+    fixed_int_vars::Vector{Int}
+    fixed_int_vals::Vector{Float64}
     n::Int
     solving_time::Float64
 end
@@ -54,7 +56,11 @@ function ManagedBoundedLMO(simple_lmo, lb, ub, int_vars::Vector{Int}, n::Int)
         @assert isapprox(lb[i], round(lb[i]), atol=1e-6, rtol=1e-2)
         @assert isapprox(ub[i], round(ub[i]), atol=1e-6, rtol=1e-2)
     end
-    return ManagedBoundedLMO(simple_lmo, lb, ub, int_vars, n, 0.0)
+
+    fixed_int_vars = int_vars[lb.==ub]
+    fixed_int_vals = lb[lb.==ub]
+
+    return ManagedBoundedLMO(simple_lmo, lb, ub, int_vars, fixed_int_vars, fixed_int_vals, n, 0.0)
 end
 
 #ManagedBoundedLMO(simple_lmo, lb, ub, n, int_vars) = ManagedBoundedLMO(simple_lmo, lb, ub, n, int_vars, 0.0)
@@ -106,11 +112,11 @@ function is_inface_feasible(blmo::ManagedBoundedLMO, a, x)
 end
 
 #Provide FrankWolfe.dicg_maximum_step
-function dicg_maximum_step(blmo::ManagedBoundedLMO, x, direction; kwargs...)
+function dicg_maximum_step(blmo::ManagedBoundedLMO, direction, x; kwargs...)
     return bounded_dicg_maximum_step(
         blmo.simple_lmo,
-        x,
         direction,
+        x,
         blmo.lower_bounds,
         blmo.upper_bounds,
         blmo.int_vars,
@@ -200,6 +206,18 @@ function add_bound_constraint!(blmo::ManagedBoundedLMO, key, value, sense::Symbo
     else
         error("Allowed value of sense are :lessthan and :greaterthan!")
     end
+end
+
+# Add the corresponding fixed int variables and their fixed values
+function add_fixed_int_vars_vals(blmo::ManagedBoundedLMO, fixed_int_vars::Vector{Int})
+    blmo.fixed_int_vars = fixed_int_vars
+    fixed_int_vals = Vector{Float64}()
+    for fixed_int_var in fixed_int_vars
+        idx = findfirst(x -> x == fixed_int_var, blmo.int_vars)
+        val = blmo.lower_bounds[idx]
+        push!(fixed_int_vals, val)
+    end
+    blmo.fixed_int_vals = fixed_int_vals
 end
 
 ## Checks
