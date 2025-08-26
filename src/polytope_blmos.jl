@@ -447,10 +447,14 @@ function bounded_compute_inface_extreme_point(
 
     non_fixed_idx = setdiff(indices, fixed_vars)
     d_updated = d[non_fixed_idx]
-    idx_neg = findall(x -> x <= 0, d_updated)
-    perm = sortperm(d_updated[idx_neg])
-    sorted_neg = idx_neg[perm]
-    sorted = non_fixed_idx[sorted_neg]
+    if isapprox(sum(x), sblmo.N; atol=atol, rtol=rtol)
+        # Inface away vertex is fixed to simplex face.
+        idx_modified = collect(1:length(non_fixed_idx))
+    else
+        idx_modified = findall(x -> x <= 0, d_updated)
+    end
+    perm = sortperm(d_updated[idx_modified])
+    sorted = non_fixed_idx[idx_modified[perm]]
 
     for i in sorted
         if i in int_vars
