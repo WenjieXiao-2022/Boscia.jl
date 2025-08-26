@@ -38,6 +38,7 @@ function Bonobo.get_branching_variable(
                 tree.root.problem.integer_variable_bounds,
                 boundsLeft,
                 Bonobo.get_branching_indices(tree.root),
+                node.fixed_int_vars,
             )
             status = check_feasibility(branching.bounded_lmo)
             if status == OPTIMAL
@@ -77,6 +78,7 @@ function Bonobo.get_branching_variable(
                 tree.root.problem.integer_variable_bounds,
                 boundsRight,
                 Bonobo.get_branching_indices(tree.root),
+                node.fixed_int_vars,
             )
             status = check_feasibility(branching.bounded_lmo)
             if status == OPTIMAL
@@ -131,6 +133,7 @@ function Bonobo.get_branching_variable(
         tree.root.problem.integer_variable_bounds,
         node.local_bounds,
         Bonobo.get_branching_indices(tree.root),
+        node.fixed_int_vars,
     )
     return max_idx
 end
