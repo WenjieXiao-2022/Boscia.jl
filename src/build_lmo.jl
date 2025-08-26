@@ -13,6 +13,7 @@ function build_LMO(
     global_bounds::IntegerBounds,
     node_bounds::IntegerBounds,
     int_vars::Vector{Int},
+    fixed_int_vars::Vector{Int},
 )
     free_model(blmo)
 
@@ -74,8 +75,63 @@ function build_LMO(
         end
     end
 
+    add_fixed_int_vars_vals(blmo, fixed_int_vars)
+
+    if blmo isa ManagedBoundedLMO && (blmo.simple_lmo isa BirkhoffBLMO)
+        sblmo = blmo.simple_lmo
+        dim = sblmo.dim
+        n = dim^2
+        fixed_to_one_vars = blmo.fixed_int_vars[blmo.fixed_int_vals.==1.0]
+        empty!(sblmo.fixed_to_one_rows)
+        empty!(sblmo.fixed_to_one_cols)
+        for fixed_to_one_var in fixed_to_one_vars
+            q = (fixed_to_one_var - 1) ÷ dim
+            r = (fixed_to_one_var - 1) - q * dim
+            if sblmo.append_by_column
+                i = r + 1
+                j = q + 1
+            else
+                i = q + 1
+                j = r + 1
+            end
+            push!(sblmo.fixed_to_one_rows, i)
+            push!(sblmo.fixed_to_one_cols, j)
+        end
+
+        fixed_to_one_rows = copy(sblmo.fixed_to_one_rows)
+        fixed_to_one_cols = copy(sblmo.fixed_to_one_cols)
+        nfixed = length(fixed_to_one_rows)
+        nreduced = dim - nfixed
+
+        # stores the indices of the original matrix that are still in the reduced matrix
+        index_map_rows = fill(1, nreduced)
+        index_map_cols = fill(1, nreduced)
+        idx_in_map_row = 1
+        idx_in_map_col = 1
+        for orig_idx in 1:dim
+            if orig_idx ∉ fixed_to_one_rows
+                index_map_rows[idx_in_map_row] = orig_idx
+                idx_in_map_row += 1
+            end
+            if orig_idx ∉ fixed_to_one_cols
+                index_map_cols[idx_in_map_col] = orig_idx
+                idx_in_map_col += 1
+            end
+        end
+
+        empty!(sblmo.index_map_rows)
+        empty!(sblmo.index_map_cols)
+        append!(sblmo.index_map_rows, index_map_rows)
+        append!(sblmo.index_map_cols, index_map_cols)
+    end
+
     return build_LMO_correct(blmo, node_bounds)
 end
 
-build_LMO(tlmo::TimeTrackingLMO, gb::IntegerBounds, nb::IntegerBounds, int_vars::Vector{Int64}) =
-    build_LMO(tlmo.blmo, gb, nb, int_vars)
+build_LMO(
+    tlmo::TimeTrackingLMO,
+    gb::IntegerBounds,
+    nb::IntegerBounds,
+    int_vars::Vector{Int64},
+    fixed_int_vars::Vector{Int64},
+) = build_LMO(tlmo.blmo, gb, nb, int_vars, fixed_int_vars)
