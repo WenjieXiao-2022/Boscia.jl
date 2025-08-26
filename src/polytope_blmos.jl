@@ -434,7 +434,7 @@ function bounded_compute_inface_extreme_point(
             if isapprox(x[i], 0.0; atol=atol, rtol=rtol)
                 push!(fixed_vars, i)
             end
-            if isapprox(x[i], 0.0; atol=atol, rtol=rtol)
+            if isapprox(x[i], sblmo.N; atol=atol, rtol=rtol)
                 push!(fixed_vars, i)
                 a[i] = sblmo.N
             end
@@ -522,7 +522,7 @@ end
 
 """
     rounding_hyperplane_heuristic(tree::Bonobo.BnBTree, tlmo::TimeTrackingLMO{ManagedBoundedLMO{UnitSimplexSimpleBLMO}}, x) 
-    
+
 Hyperplane-aware rounding for the unit simplex.
 """
 function rounding_hyperplane_heuristic(
@@ -599,262 +599,196 @@ struct BirkhoffBLMO <: SimpleBoundableLMO
     append_by_column::Bool
     dim::Int
     int_vars::Vector{Int}
+    fixed_to_one_rows::Vector{Int}
+    fixed_to_one_cols::Vector{Int}
+    index_map_rows::Vector{Int}
+    index_map_cols::Vector{Int}
     atol::Float64
     rtol::Float64
 end
 
 BirkhoffBLMO(dim, int_vars; append_by_column=true) =
-    BirkhoffBLMO(append_by_column, dim, int_vars, 1e-6, 1e-3)
+    BirkhoffBLMO(append_by_column, dim, int_vars, Int[], Int[], collect(1:dim), collect(1:dim), 1e-6, 1e-3)
 
 """
 Computes the extreme point given an direction d, the current lower and upper bounds on the integer variables, and the set of integer variables.
 """
 function Boscia.bounded_compute_extreme_point(sblmo::BirkhoffBLMO, d, lb, ub, int_vars; kwargs...)
-    n = sblmo.dim
+	n = sblmo.dim
 
-    if size(d, 2) == 1
-        d = sblmo.append_by_column ? reshape(d, (n, n)) : transpose(reshape(d, (n, n)))
-    end
+	if size(d, 2) == 1
+		d = sblmo.append_by_column ? reshape(d, (n, n)) : transpose(reshape(d, (n, n)))
+	end
 
-    fixed_to_one_rows = Int[]
-    fixed_to_one_cols = Int[]
-    delete_ub = Int[]
-    for j in 1:n
-        for i in 1:n
-            if lb[(j-1)*n+i] >= 1 - eps()
-                if sblmo.append_by_column
-                    push!(fixed_to_one_rows, i)
-                    push!(fixed_to_one_cols, j)
-                    append!(delete_ub, union(collect(((j-1)*n+1):(j*n)), collect(i:n:(n^2))))
-                else
-                    push!(fixed_to_one_rows, j)
-                    push!(fixed_to_one_cols, i)
-                    append!(delete_ub, union(collect(((i-1)*n+1):(i*n)), collect(j:n:(n^2))))
-                end
-            end
-        end
-    end
+	fixed_to_one_rows = copy(sblmo.fixed_to_one_rows)
+	fixed_to_one_cols = copy(sblmo.fixed_to_one_cols)
+	index_map_rows = copy(sblmo.index_map_rows)
+	index_map_cols = copy(sblmo.index_map_cols)
 
-    sort!(delete_ub)
-    unique!(delete_ub)
-    nfixed = length(fixed_to_one_cols)
-    nreduced = n - nfixed
-    reducedub = copy(ub)
-    deleteat!(reducedub, delete_ub)
+	nreduced = length(index_map_rows)
+	type = typeof(d[1, 1])
+	d2 = ones(Union{type, Missing}, nreduced, nreduced)
+	for j in 1:nreduced
+		for i in 1:nreduced
+			row_orig = index_map_rows[i]
+			col_orig = index_map_cols[j]
+			if sblmo.append_by_column
+				orig_linear_idx = (col_orig-1)*n+row_orig
+			else
+				orig_linear_idx = (row_orig-1)*n+col_orig
+			end
+			# interdict arc when fixed to zero
+			if ub[orig_linear_idx] <= eps()
+				if sblmo.append_by_column
+					d2[i, j] = missing
+				else
+					d2[j, i] = missing
+				end
+			else
+				if sblmo.append_by_column
+					d2[i, j] = d[row_orig, col_orig]
+				else
+					d2[j, i] = d[col_orig, row_orig]
+				end
+			end
+		end
+	end
 
-    # stores the indices of the original matrix that are still in the reduced matrix
-    index_map_rows = fill(1, nreduced)
-    index_map_cols = fill(1, nreduced)
-    idx_in_map_row = 1
-    idx_in_map_col = 1
-    for orig_idx in 1:n
-        if orig_idx ∉ fixed_to_one_rows
-            index_map_rows[idx_in_map_row] = orig_idx
-            idx_in_map_row += 1
-        end
-        if orig_idx ∉ fixed_to_one_cols
-            index_map_cols[idx_in_map_col] = orig_idx
-            idx_in_map_col += 1
-        end
-    end
-    type = typeof(d[1, 1])
-    d2 = ones(Union{type,Missing}, nreduced, nreduced)
-    for j in 1:nreduced
-        for i in 1:nreduced
-            # interdict arc when fixed to zero
-            if reducedub[(j-1)*nreduced+i] <= eps()
-                if sblmo.append_by_column
-                    d2[i, j] = missing
-                else
-                    d2[j, i] = missing
-                end
-            else
-                if sblmo.append_by_column
-                    d2[i, j] = d[index_map_rows[i], index_map_cols[j]]
-                else
-                    d2[j, i] = d[index_map_rows[j], index_map_cols[i]]
-                end
-            end
-        end
-    end
-    m = SparseArrays.spzeros(n, n)
-    for (i, j) in zip(fixed_to_one_rows, fixed_to_one_cols)
-        m[i, j] = 1
-    end
-    res_mat = Hungarian.munkres(d2)
-    (rows, cols, vals) = SparseArrays.findnz(res_mat)
-    @inbounds for i in eachindex(cols)
-        m[index_map_rows[rows[i]], index_map_cols[cols[i]]] = (vals[i] == 2)
-    end
+	m = SparseArrays.spzeros(n, n)
+	for (i, j) in zip(fixed_to_one_rows, fixed_to_one_cols)
+		m[i, j] = 1
+	end
 
-    m = if sblmo.append_by_column
-        # Convert sparse matrix to sparse vector by columns
-        I, J, V = SparseArrays.findnz(m)
-        linear_indices = (J .- 1) .* n .+ I
-        SparseArrays.sparsevec(linear_indices, V, n^2)
-    else
-        # Convert sparse matrix to sparse vector by rows (transpose first)
-        mt = SparseArrays.sparse(LinearAlgebra.transpose(m))
-        I, J, V = SparseArrays.findnz(mt)
-        linear_indices = (J .- 1) .* n .+ I
-        SparseArrays.sparsevec(linear_indices, V, n^2)
-    end
-    return m
+	res_mat = Hungarian.munkres(d2)
+	(rows, cols, vals) = SparseArrays.findnz(res_mat)
+	@inbounds for i in eachindex(cols)
+		m[index_map_rows[rows[i]], index_map_cols[cols[i]]] = (vals[i] == 2)
+	end
+
+	m = if sblmo.append_by_column
+		# Convert sparse matrix to sparse vector by columns
+		I, J, V = SparseArrays.findnz(m)
+		linear_indices = (J .- 1) .* n .+ I
+		SparseArrays.sparsevec(linear_indices, V, n^2)
+	else
+		# Convert sparse matrix to sparse vector by rows (transpose first)
+		mt = SparseArrays.sparse(LinearAlgebra.transpose(m))
+		I, J, V = SparseArrays.findnz(mt)
+		linear_indices = (J .- 1) .* n .+ I
+		SparseArrays.sparsevec(linear_indices, V, n^2)
+	end
+	return m
 end
 
 """
 Computes the inface extreme point given an direction d, x, the current lower and upper bounds on the integer variables, and the set of integer variables.
 """
 function Boscia.bounded_compute_inface_extreme_point(
-    sblmo::BirkhoffBLMO,
-    direction,
-    x,
-    lb,
-    ub,
-    int_vars;
-    kwargs...,
+	sblmo::BirkhoffBLMO,
+	direction,
+	x,
+	lb,
+	ub,
+	int_vars;
+	kwargs...,
 )
-    n = sblmo.dim
+	n = sblmo.dim
 
-    if size(direction, 2) == 1
-        direction =
-            sblmo.append_by_column ? reshape(direction, (n, n)) :
-            transpose(reshape(direction, (n, n)))
-    end
+	if size(direction, 2) == 1
+		direction =
+			sblmo.append_by_column ? reshape(direction, (n, n)) :
+			transpose(reshape(direction, (n, n)))
+	end
 
-    if size(x, 2) == 1
-        x = sblmo.append_by_column ? reshape(x, (n, n)) : transpose(reshape(x, (n, n)))
-    end
-    fixed_to_one_rows = Int[]
-    fixed_to_one_cols = Int[]
-    delete_ub = Int[]
+	if size(x, 2) == 1
+		x = sblmo.append_by_column ? reshape(x, (n, n)) : transpose(reshape(x, (n, n)))
+	end
 
-    for idx in eachindex(int_vars)
-        if lb[idx] >= 1 - eps()
-            var_idx = int_vars[idx]
-            if sblmo.append_by_column
-                j = ceil(Int, var_idx / n)
-                i = Int(var_idx - n * (j - 1))
-                push!(fixed_to_one_rows, i)
-                push!(fixed_to_one_cols, j)
-                append!(delete_ub, union(collect(((j-1)*n+1):(j*n)), collect(i:n:(n^2))))
-            else
-                i = ceil(int, var_idx / n)
-                j = Int(var_idx - n * (j - 1))
-                push!(fixed_to_one_rows, j)
-                push!(fixed_to_one_cols, i)
-                append!(delete_ub, union(collect(((i-1)*n+1):(i*n)), collect(j:n:(n^2))))
-            end
-        end
-    end
 
-    for j in 1:n
-        if j ∉ fixed_to_one_cols
-            for i in 1:n
-                if i ∉ fixed_to_one_rows
-                    if x[i, j] >= 1 - eps()
-                        push!(fixed_to_one_rows, i)
-                        push!(fixed_to_one_cols, j)
-                        if sblmo.append_by_column
-                            append!(
-                                delete_ub,
-                                union(collect(((j-1)*n+1):(j*n)), collect(i:n:(n^2))),
-                            )
-                        else
-                            append!(
-                                delete_ub,
-                                union(collect(((i-1)*n+1):(i*n)), collect(j:n:(n^2))),
-                            )
-                        end
-                    end
-                end
-            end
-        end
-    end
+	fixed_to_one_rows = copy(sblmo.fixed_to_one_rows)
+	fixed_to_one_cols = copy(sblmo.fixed_to_one_cols)
+	index_map_rows = copy(sblmo.index_map_rows)
+	index_map_cols = copy(sblmo.index_map_cols)
 
-    sort!(delete_ub)
-    unique!(delete_ub)
-    fixed_to_one_cols = unique!(fixed_to_one_cols)
-    fixed_to_one_rows = unique!(fixed_to_one_rows)
-    nfixed = length(fixed_to_one_cols)
-    nreduced = n - nfixed
-    reducedub = copy(ub)
-    reducedintvars = copy(int_vars)
-    delete_ub_idx = findall(x -> x in delete_ub, int_vars)
-    deleteat!(reducedub, delete_ub_idx)
-    deleteat!(reducedintvars, delete_ub_idx)
-    # stores the indices of the original matrix that are still in the reduced matrix
-    index_map_rows = fill(1, nreduced)
-    index_map_cols = fill(1, nreduced)
-    idx_in_map_row = 1
-    idx_in_map_col = 1
-    for orig_idx in 1:n
-        if orig_idx ∉ fixed_to_one_rows
-            index_map_rows[idx_in_map_row] = orig_idx
-            idx_in_map_row += 1
-        end
-        if orig_idx ∉ fixed_to_one_cols
-            index_map_cols[idx_in_map_col] = orig_idx
-            idx_in_map_col += 1
-        end
-    end
-    type = typeof(direction[1, 1])
-    d2 = ones(Union{type,Missing}, nreduced, nreduced)
+	nreduced = length(index_map_rows)
 
-    for j in 1:nreduced
-        for i in 1:nreduced
-            idx = (index_map_cols[j] - 1) * n + index_map_rows[i]
-            if sblmo.append_by_column
-                if x[index_map_rows[i], index_map_cols[j]] <= eps()
-                    d2[i, j] = missing
-                else
-                    d2[i, j] = direction[index_map_rows[i], index_map_cols[j]]
-                end
-            else
-                if x[index_map_rows[i], index_map_cols[j]] <= eps()
-                    d2[j, i] = missing
-                else
-                    d2[j, i] = direction[index_map_rows[j], index_map_cols[i]]
-                end
-            end
-            # interdict arc when fixed to zero
-            if idx in reducedintvars
-                reducedub_idx = findfirst(x -> x == idx, reducedintvars)
-                if reducedub[reducedub_idx] <= eps()
-                    if sblmo.append_by_column
-                        d2[i, j] = missing
-                    else
-                        d2[j, i] = missing
-                    end
-                end
-            end
-        end
-    end
+	delete_index_map_rows = Int[]
+	delete_index_map_cols = Int[]
+	for j in 1:nreduced
+		for i in 1:nreduced
+			row_orig = index_map_rows[i]
+			col_orig = index_map_cols[j]
+			if x[row_orig, col_orig] >= 1-eps()
+				push!(fixed_to_one_rows, row_orig)
+				push!(fixed_to_one_cols, col_orig)
 
-    m = SparseArrays.spzeros(n, n)
-    for (i, j) in zip(fixed_to_one_rows, fixed_to_one_cols)
-        m[i, j] = 1
-    end
-    res_mat = Hungarian.munkres(d2)
-    (rows, cols, vals) = SparseArrays.findnz(res_mat)
-    @inbounds for i in eachindex(cols)
-        m[index_map_rows[rows[i]], index_map_cols[cols[i]]] = (vals[i] == 2)
-    end
+				push!(delete_index_map_rows, i)
+				push!(delete_index_map_cols, j)
+			end
+		end
+	end
 
-    m = if sblmo.append_by_column
-        # Convert sparse matrix to sparse vector by columns
-        I, J, V = SparseArrays.findnz(m)
-        linear_indices = (J .- 1) .* n .+ I
-        SparseArrays.sparsevec(linear_indices, V, n^2)
-    else
-        # Convert sparse matrix to sparse vector by rows (transpose first)
-        mt = SparseArrays.sparse(LinearAlgebra.transpose(m))
-        I, J, V = SparseArrays.findnz(mt)
-        linear_indices = (J .- 1) .* n .+ I
-        SparseArrays.sparsevec(linear_indices, V, n^2)
-    end
+	unique!(delete_index_map_rows)
+	unique!(delete_index_map_cols)
+	sort!(delete_index_map_rows)
+	sort!(delete_index_map_cols)
+	deleteat!(index_map_rows, delete_index_map_rows)
+	deleteat!(index_map_cols, delete_index_map_cols)
 
-    return m
+	nreduced = length(index_map_rows)
+	type = typeof(direction[1, 1])
+	d2 = ones(Union{type, Missing}, nreduced, nreduced)
+	for j in 1:nreduced
+		for i in 1:nreduced
+			row_orig = index_map_rows[i]
+			col_orig = index_map_cols[j]
+			if sblmo.append_by_column
+				orig_linear_idx = (col_orig-1)*n+row_orig
+			else
+				orig_linear_idx = (row_orig-1)*n+col_orig
+			end
+			# interdict arc when fixed to zero
+			if ub[orig_linear_idx] <= eps() || x[row_orig, col_orig] <= eps()
+				if sblmo.append_by_column
+					d2[i, j] = missing
+				else
+					d2[j, i] = missing
+				end
+			else
+				if sblmo.append_by_column
+					d2[i, j] = direction[row_orig, col_orig]
+				else
+					d2[j, i] = direction[col_orig, row_orig]
+				end
+			end
+		end
+	end
+
+	m = SparseArrays.spzeros(n, n)
+	for (i, j) in zip(fixed_to_one_rows, fixed_to_one_cols)
+		m[i, j] = 1
+	end
+
+	res_mat = Hungarian.munkres(d2)
+	(rows, cols, vals) = SparseArrays.findnz(res_mat)
+	@inbounds for i in eachindex(cols)
+		m[index_map_rows[rows[i]], index_map_cols[cols[i]]] = (vals[i] == 2)
+	end
+
+	m = if sblmo.append_by_column
+		# Convert sparse matrix to sparse vector by columns
+		I, J, V = SparseArrays.findnz(m)
+		linear_indices = (J .- 1) .* n .+ I
+		SparseArrays.sparsevec(linear_indices, V, n^2)
+	else
+		# Convert sparse matrix to sparse vector by rows (transpose first)
+		mt = SparseArrays.sparse(LinearAlgebra.transpose(m))
+		I, J, V = SparseArrays.findnz(mt)
+		linear_indices = (J .- 1) .* n .+ I
+		SparseArrays.sparsevec(linear_indices, V, n^2)
+	end
+
+	return m
 end
 
 """
