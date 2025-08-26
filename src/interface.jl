@@ -553,7 +553,7 @@ function postsolve(tree, result, time_ref, verbose, max_iteration_post)
         tree.root.problem.integer_variable_bounds,
         int_bounds,
         tree.root.problem.integer_variables,
-        tree.root.problem.tlmo.blmo.fixed_int_vars,
+        Int[],
     )
 
     return x
