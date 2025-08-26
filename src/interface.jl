@@ -185,6 +185,7 @@ function solve(
         active_set,
         vertex_storage,
         IntegerBounds(),
+        blmo.fixed_int_vars,
         1,
         1e-3,
         Millisecond(0),
@@ -259,6 +260,7 @@ function solve(
             active_set=active_set,
             discarded_vertices=vertex_storage,
             local_bounds=IntegerBounds(),
+            fixed_int_vars=blmo.fixed_int_vars,
             level=1,
             fw_dual_gap_limit=fw_epsilon,
             fw_time=Millisecond(0),
@@ -551,6 +553,7 @@ function postsolve(tree, result, time_ref, verbose, max_iteration_post)
         tree.root.problem.integer_variable_bounds,
         int_bounds,
         tree.root.problem.integer_variables,
+        tree.root.problem.tlmo.blmo.fixed_int_vars,
     )
 
     return x
