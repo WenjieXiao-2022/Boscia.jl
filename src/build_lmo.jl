@@ -74,7 +74,7 @@ function build_LMO(
         end
     end
 
-    update_mode(blmo)
+    update_model(blmo)
 
     return build_LMO_correct(blmo, node_bounds)
 end
