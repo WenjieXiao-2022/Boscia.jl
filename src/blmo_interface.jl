@@ -176,6 +176,15 @@ function free_model(blmo::BoundedLinearMinimizationOracle)
 end
 
 """
+    update_model(blmo::BoundedLinearMinimizationOracle)
+
+Update model after the bound constraints are set (if necessary).
+"""
+function update_model(blmo::BoundedLinearMinimizationOracle)
+    return true
+end
+
+"""
     get_tol(blmo::BoundedLinearMinimizationOracle)
 
 Get solving tolerance for the BLMO.
